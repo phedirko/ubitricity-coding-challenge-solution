@@ -55,7 +55,7 @@ public class ChargingPoint {
     }
 
     public void switchToFastCharging(){
-        if (!isFastCharging()) {
+        if (isFastCharging()) {
             throw new RuntimeException("Already switched to fast charging");
         }
 
