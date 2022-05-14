@@ -2,6 +2,7 @@ package com.example.ubitricitychallange.domain;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 public class ChargingPoint {
@@ -21,14 +22,16 @@ public class ChargingPoint {
         return activeConnection.isFastCharging();
     }
 
-    public boolean isOccupied() {
+    public boolean EVPlugged() {
         return activeConnection != null;
     }
 
-    public void connect(String clientId, LocalDateTime connectedAt, boolean fastCharging) {
+    public Connection connect(String clientId, LocalDateTime connectedAt, boolean fastCharging) {
         var connection= Connection.Create(clientId, fastCharging, connectedAt); // todo: return connection object
         connections.add(connection);
         activeConnection = connection;
+
+        return connection;
     }
 
     public void disconnect(LocalDateTime disconnectedAt) {
@@ -36,4 +39,31 @@ public class ChargingPoint {
         activeConnection = null;
     }
 
+    public void switchToSlowCharging() {
+        if (!isFastCharging()) {
+            throw new RuntimeException("Already switched to slow charging");
+        }
+
+        var currentConnection = activeConnection;
+        var now = LocalDateTime.now();
+
+        disconnect(now);
+        connect(currentConnection.getClientId(), now, false);
+    }
+
+    public void switchToFastCharging(){
+        if (!isFastCharging()) {
+            throw new RuntimeException("Already switched to fast charging");
+        }
+
+        var currentConnection = activeConnection;
+        var now = LocalDateTime.now();
+
+        disconnect(now);
+        connect(currentConnection.getClientId(), now, true);
+    }
+
+    public LocalDateTime getPluggedAt() {
+        return activeConnection.getConnectedAt();
+    }
 }

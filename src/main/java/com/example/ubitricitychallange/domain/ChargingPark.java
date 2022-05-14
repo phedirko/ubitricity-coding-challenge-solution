@@ -2,153 +2,112 @@ package com.example.ubitricitychallange.domain;
 
 import com.example.ubitricitychallange.exceptions.AllChargingPointOccupiedException;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 // TODO: naming conventions (Capital first letter?)
 
 public class ChargingPark {
-    private static final Object lock = new Object();
-
-    public ChargingPark Create(Set<ChargingPoint> chargingPoints) {
-
-    }
-
-    public ChargingPark(Set<ChargingPoint> chargingPoints){
+    public ChargingPark(Set<ChargingPoint> chargingPoints, double maxAvailableCurrentAmp){
         this.chargingPoints = chargingPoints;
+        this.maxAvailableCurrentAmp = maxAvailableCurrentAmp;
     }
 
     private Set<ChargingPoint> chargingPoints;
     private double availableCurrent; // move to the charging point?
-    private int availableChargingPoints;
-    private Set<EVConnection> connectedVehicles;
+    private double maxAvailableCurrentAmp;
 
-    public void Connect() {
-        if (getAvailableChargingPoints().isEmpty()) {
-            throw new AllChargingPointOccupiedException();
+    public void connect(String clientId, LocalDateTime connectedAt, int cpId) { // todo: Probably there should be a param of type Connection or similar
+        var targetCP = getAvailableChargingPoints()
+                .stream()
+                .filter(x -> x.getId() == cpId)
+                .findFirst();
+
+        if (targetCP.isEmpty()) {
+            throw new AllChargingPointOccupiedException(); // terminating if there is an EV already connected to this CP
         }
 
-
-
+        if (calculateMaxPossibleCurrentAvailable() >= Constants.FAST_CHARGING_CURRENT_AMP) {
+            connectForFastCharging(targetCP.get(), clientId, connectedAt);
+        } else { // if there was a plug, there certainly would be a capacity to charge slowly
+            targetCP.get().connect(clientId, connectedAt, false);
+        }
     }
 
-    private double calculateMaxPossibleCurrentAvailable(){ // todo: a better naming
+    public void disconnect(String clientId, LocalDateTime disconnectedAt, int cpId) {
+        var targetCP = getAvailableChargingPoints()
+                .stream()
+                .filter(x -> x.getId() == cpId)
+                .findFirst();
 
+        if (targetCP.isEmpty()){
+            throw new RuntimeException("Already disconnected");
+        }
+
+        targetCP.get().disconnect(disconnectedAt);
+
+        // After EV disconnected, there should be an additional capacity to switch one connected EV to the fast charging
+        var latestConnectedCP = getPluggedChargingPoints()
+                .stream()
+                .filter(x -> !x.isFastCharging())
+                .sorted(Comparator.comparing(ChargingPoint::getPluggedAt).reversed())
+                .findFirst();
+
+        if (latestConnectedCP.isEmpty()) { // This shouldn't be the case, but as it doesn't break anything, no need to throw an exception
+            return;
+        }
+
+        connectForFastCharging(latestConnectedCP.get(), clientId, disconnectedAt);
     }
 
-    private Set<ChargingPoint> getAvailableChargingPoints() {
+    private void connectForFastCharging(ChargingPoint cp, String clientId, LocalDateTime connectedAt) {
+        var pluggedCPs = getPluggedChargingPoints();
+
+        double currentConsumption = pluggedCPs
+                .stream()
+                .map(x -> x.isFastCharging()
+                        ? Constants.FAST_CHARGING_CURRENT_AMP
+                        : Constants.SLOW_CHARGING_CURRENT_AMP)
+                .collect(Collectors.summingDouble(Double::doubleValue));
+
+        if (currentConsumption >= Constants.FAST_CHARGING_CURRENT_AMP) {
+            cp.connect(clientId, connectedAt, true);
+            return;
+        }
+
+        // todo: TESTING - test for null exception
+        var fastChargingCPWithOldestConnection = pluggedCPs
+                .stream()
+                .filter(x -> x.EVPlugged() &&
+                             x.isFastCharging())
+                .sorted(Comparator.comparing(ChargingPoint::getPluggedAt)) // TODO: check order
+                .findFirst()
+                .get();
+
+        // Switching the earliest connected vehicle to a slow charging
+        fastChargingCPWithOldestConnection.switchToSlowCharging();
+        cp.connect(clientId, connectedAt, true);
+    }
+
+    private double calculateMaxPossibleCurrentAvailable() { // todo: a better naming
+        var pluggedCPsCount = getPluggedChargingPoints().size();
+        double currentAvailableToReserve = maxAvailableCurrentAmp - (pluggedCPsCount * Constants.SLOW_CHARGING_CURRENT_AMP);
+
+        return currentAvailableToReserve;
+    }
+
+    private List<ChargingPoint> getAvailableChargingPoints() {
         return chargingPoints
                 .stream()
-                .filter(x -> !x.isOccupied())
-                .collect(Collectors.toSet());
+                .filter(x -> !x.EVPlugged())
+                .collect(Collectors.toUnmodifiableList());
     }
 
-    public void Connect(EVConnection ev){
-        if (availableChargingPoints <= 0) {
-            throw new AllChargingPointOccupiedException();
-        }
-
-        // Reserve a plug. If there is a plug, there certainly will be a current for this chargingPoint
-        // Is it possible to reserve CP more than once at one time?
-        var cpReserved = this.ReserveCP();
-
-        if (!cpReserved){
-            throw new AllChargingPointOccupiedException();
-        }
-
-        //boolean connectedToFastCharging = false;
-        // if available current is enough for fast charging no need for additional checks
-        if (availableCurrent >= FAST_CHARGING_CURRENT_AMP){
-            if(ConnectAsFastCharging(ev))
-                return;
-        }
-
-        var connectedFastChargingEVs = GetFastChargingEVs();
-
-        // probably, this should be an atomic operation
-        if (!connectedFastChargingEVs.isEmpty()){
-            reduceCurrentForOlderConnections();
-            if(ConnectAsFastCharging(ev))
-                return;
-        }
-
-
+    private Collection<ChargingPoint> getPluggedChargingPoints() {
+        return chargingPoints
+                .stream()
+                .filter(x -> x.EVPlugged())
+                .collect(Collectors.toUnmodifiableList());
     }
-
-    // TODO: re-distribute current after each connection/disconnection
-    // probably it needs a better naming
-    private void reduceCurrentForOlderConnections(){
-        var olderConnections = GetFastChargingEVs();
-        olderConnections.sort(Comparator.comparing(o -> o.getConnectedAt()));
-
-        var oldestConnection = olderConnections.get(0);
-
-        oldestConnection.setFastCharging(false);
-
-        releaseCapacity(FAST_CHARGING_CURRENT_AMP - SLOW_CHARGING_CURRENT_AMP);
-    }
-
-    private List<EVConnection> GetFastChargingEVs(){
-        return this.connectedVehicles
-                   .stream()
-                   .filter(x -> x.isFastCharging())
-                   .collect(Collectors.toList());
-    }
-
-    private boolean ConnectAsFastCharging(EVConnection ev){
-        // Reserving a capacity here
-        boolean capacityReservedSuccessfully = ReserveCapacity(FAST_CHARGING_CURRENT_AMP);
-
-        if (capacityReservedSuccessfully) {
-            ev.setFastCharging(true);
-            connectedVehicles.add(ev);
-            return true;
-        }
-
-        return false;
-    }
-
-    private void ConnectAsSlowCharging(EVConnection ev){
-        if (availableCurrent >= SLOW_CHARGING_CURRENT_AMP){
-
-        }
-    }
-
-    private boolean ReserveCP(){
-        boolean reservedSuccessfully = false;
-        synchronized (lock){
-            if (availableChargingPoints > 0) {
-                availableChargingPoints -= 1;
-                reservedSuccessfully = true;
-            }
-        }
-
-        return reservedSuccessfully;
-    }
-
-
-    // TODO:
-    // 1. Reserve a plug
-    // 2. Release capacity
-    private boolean ReserveCapacity(double currentToReserve){
-        boolean reservedSuccessfully = false;
-        synchronized (lock){
-            // Doublechecking the available current if someone already
-            if (availableCurrent >= currentToReserve){
-                availableCurrent -= currentToReserve;
-                reservedSuccessfully = true;
-            }
-        }
-
-        return reservedSuccessfully;
-    }
-
-    // probably move it
-    // to sync it with setFastCharging=false
-    private void releaseCapacity(double currentToRelease){
-        // sync?
-        availableCurrent += currentToRelease;
-    }
-
-
 }

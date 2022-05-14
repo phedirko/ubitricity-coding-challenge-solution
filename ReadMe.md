@@ -1,3 +1,9 @@
+## My concerns:
+
+1. I am not 100% with the collections' types I used at each place.
+2. I assumed that method call chains like 
+   .stream().collect(...).stream().filter(...).collect(...) are not too bad perfomance wise.
+
 ## Trade-offs
 
 1. As the same car can be charged as slow and fast charging, during the whole charging process, there would be several entities (db records) of EVConnection. One for each period of charging.
@@ -9,5 +15,20 @@
 
     //TODO: picture
    
-  Not likely that in real life there would be 9 connections at the exact same time.
-  So there probably would be a few more additional records of EVConnection with the short time of charging for each CP as the implementation tries to distribute the current each time the EV plugged/unplugged according the requirements
+    Not likely that in real life there would be 9 connections at the exact same time.
+    So there probably would be a few more additional records of EVConnection with the short time of charging for each CP as the implementation tries to distribute the current each time the EV plugged/unplugged according the requirements.
+  
+
+2. **Thread-safety**: I tried to make the whole flow of plugging/unplugging as an atomic operation to provide some thread-safety avoid cases when two simultaneously connected vehicles leads to total consumption of >100 Amp. 
+   1. It works (I hope so) in a solution like this, but I think this is not the case in real-world distributed systems where there could be more than 1 instance of the 'plugging/unplugging' service.
+   2. The existing solution still could be improved in terms of performance. We could use 'synchronized' blocks for a smaller parts of code instead of whole *reservation flow*. This would lead to more complexity and should be tested properly, so I avoided it as a simplification.
+
+
+
+TODOS: 
+1. Exception filters
+2. Swagger
+3. Tests
+4. Docker
+5. Exception types
+6. Report
