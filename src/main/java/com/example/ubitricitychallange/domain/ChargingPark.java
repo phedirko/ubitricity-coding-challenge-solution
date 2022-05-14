@@ -9,21 +9,39 @@ import java.util.stream.Collectors;
 
 public class ChargingPark {
     private static final Object lock = new Object();
-    private static final double MAX_AVAILABLE_CURRENT_AMP = 100;
-    private static final double FAST_CHARGING_CURRENT_AMP = 20;
-    private static final double SLOW_CHARGING_CURRENT_AMP = 10;
 
-    private static final int CHARGING_POINTS_NUMBER = 10;
+    public ChargingPark Create(Set<ChargingPoint> chargingPoints) {
 
-    public ChargingPark(){
-        this.connectedVehicles = new HashSet<EVConnection>();
-        this.availableCurrent = MAX_AVAILABLE_CURRENT_AMP;
-        this.availableChargingPoints = CHARGING_POINTS_NUMBER;
     }
 
+    public ChargingPark(Set<ChargingPoint> chargingPoints){
+        this.chargingPoints = chargingPoints;
+    }
+
+    private Set<ChargingPoint> chargingPoints;
     private double availableCurrent; // move to the charging point?
     private int availableChargingPoints;
     private Set<EVConnection> connectedVehicles;
+
+    public void Connect() {
+        if (getAvailableChargingPoints().isEmpty()) {
+            throw new AllChargingPointOccupiedException();
+        }
+
+
+
+    }
+
+    private double calculateMaxPossibleCurrentAvailable(){ // todo: a better naming
+
+    }
+
+    private Set<ChargingPoint> getAvailableChargingPoints() {
+        return chargingPoints
+                .stream()
+                .filter(x -> !x.isOccupied())
+                .collect(Collectors.toSet());
+    }
 
     public void Connect(EVConnection ev){
         if (availableChargingPoints <= 0) {
@@ -31,15 +49,18 @@ public class ChargingPark {
         }
 
         // Reserve a plug. If there is a plug, there certainly will be a current for this chargingPoint
+        // Is it possible to reserve CP more than once at one time?
         var cpReserved = this.ReserveCP();
 
         if (!cpReserved){
             throw new AllChargingPointOccupiedException();
         }
 
+        //boolean connectedToFastCharging = false;
         // if available current is enough for fast charging no need for additional checks
         if (availableCurrent >= FAST_CHARGING_CURRENT_AMP){
-            ConnectAsFastCharging(ev);
+            if(ConnectAsFastCharging(ev))
+                return;
         }
 
         var connectedFastChargingEVs = GetFastChargingEVs();
@@ -47,10 +68,14 @@ public class ChargingPark {
         // probably, this should be an atomic operation
         if (!connectedFastChargingEVs.isEmpty()){
             reduceCurrentForOlderConnections();
-            ConnectAsFastCharging(ev);
+            if(ConnectAsFastCharging(ev))
+                return;
         }
+
+
     }
 
+    // TODO: re-distribute current after each connection/disconnection
     // probably it needs a better naming
     private void reduceCurrentForOlderConnections(){
         var olderConnections = GetFastChargingEVs();
