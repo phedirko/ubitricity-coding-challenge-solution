@@ -58,7 +58,7 @@ public class ChargingPark {
             return;
         }
 
-        connectForFastCharging(latestConnectedCP.get(), clientId, disconnectedAt);
+        latestConnectedCP.get().switchToFastCharging(); // todo: proper unit test for this case
     }
 
     private void connectForFastCharging(ChargingPoint cp, String clientId, LocalDateTime connectedAt) {

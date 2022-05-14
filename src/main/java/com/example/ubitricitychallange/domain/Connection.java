@@ -15,7 +15,7 @@ public class Connection {
         this.connectedAt = connectedAt;
     }
 
-    public static Connection Create(String clientId, boolean isFastCharging, LocalDateTime connectedAt)
+    public static Connection create(String clientId, boolean isFastCharging, LocalDateTime connectedAt)
     {
         return new Connection(UUID.randomUUID(), clientId, isFastCharging, connectedAt);
     }

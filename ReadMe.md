@@ -32,3 +32,5 @@ TODOS:
 4. Docker
 5. Exception types
 6. Report
+7. order methods/fields in classes
+8. Check for code conventions ('() {' or '(){', etc)

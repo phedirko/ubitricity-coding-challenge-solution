@@ -2,7 +2,6 @@ package com.example.ubitricitychallange.domain;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 public class ChargingPoint {
@@ -26,8 +25,12 @@ public class ChargingPoint {
         return activeConnection != null;
     }
 
-    public Connection connect(String clientId, LocalDateTime connectedAt, boolean fastCharging) {
-        var connection= Connection.Create(clientId, fastCharging, connectedAt); // todo: return connection object
+    public Connection connect(String clientId, LocalDateTime connectedAt, boolean fastCharging) { // todo: connection request
+        if (EVPlugged()){
+            throw new RuntimeException("The CP is already plugged"); // TODO: type for an exception
+        }
+
+        var connection= Connection.create(clientId, fastCharging, connectedAt); // todo: return connection object
         connections.add(connection);
         activeConnection = connection;
 
@@ -65,5 +68,9 @@ public class ChargingPoint {
 
     public LocalDateTime getPluggedAt() {
         return activeConnection.getConnectedAt();
+    }
+
+    public Set<Connection> getConnections() {
+        return connections;
     }
 }
