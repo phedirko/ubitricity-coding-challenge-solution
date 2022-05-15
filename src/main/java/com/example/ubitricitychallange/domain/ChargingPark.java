@@ -14,14 +14,17 @@ public class ChargingPark {
         this.maxAvailableCurrentAmp = maxAvailableCurrentAmp;
     }
 
-    private Set<ChargingPoint> chargingPoints;
-    private double availableCurrent; // move to the charging point?
-    private double maxAvailableCurrentAmp;
+    private final Set<ChargingPoint> chargingPoints;
+    private final double maxAvailableCurrentAmp;
 
-    public void connect(String clientId, LocalDateTime connectedAt, int cpId) { // todo: Probably there should be a param of type Connection or similar
+    public Collection<ChargingPoint> getChargingPoints(){
+        return chargingPoints;
+    }
+
+    public Connection connect(NewEVConnection connection) {
         var targetCP = getAvailableChargingPoints()
                 .stream()
-                .filter(x -> x.getId() == cpId)
+                .filter(x -> x.getId() == connection.getChargingPointId())
                 .findFirst();
 
         if (targetCP.isEmpty()) {
@@ -29,16 +32,17 @@ public class ChargingPark {
         }
 
         if (calculateMaxPossibleCurrentAvailable() >= Constants.FAST_CHARGING_CURRENT_AMP) {
-            connectForFastCharging(targetCP.get(), clientId, connectedAt);
-        } else { // if there was a plug, there certainly would be a capacity to charge slowly
-            targetCP.get().connect(clientId, connectedAt, false);
+            return connectToFastCharging(targetCP.get(), connection.getClientId(), connection.getConnectedAt());
         }
+
+        // if there was a plug, there certainly would be a capacity for a slow charging
+        return connectToSlowCharging(targetCP.get(), connection.getClientId(), connection.getConnectedAt());
     }
 
-    public void disconnect(String clientId, LocalDateTime disconnectedAt, int cpId) {
-        var targetCP = getAvailableChargingPoints()
+    public void disconnect(LocalDateTime disconnectedAt, int chargingPointId) {
+        var targetCP = getPluggedChargingPoints()
                 .stream()
-                .filter(x -> x.getId() == cpId)
+                .filter(x -> x.getId() == chargingPointId)
                 .findFirst();
 
         if (targetCP.isEmpty()){
@@ -58,38 +62,64 @@ public class ChargingPark {
             return;
         }
 
-        latestConnectedCP.get().switchToFastCharging(); // todo: proper unit test for this case
+        latestConnectedCP.get().switchToFastCharging(); // todo: proper unit test for this case and debug
     }
 
-    private void connectForFastCharging(ChargingPoint cp, String clientId, LocalDateTime connectedAt) {
-        var pluggedCPs = getPluggedChargingPoints();
-
-        double currentConsumption = pluggedCPs
+    public double getTotalCurrentConsumption(){
+        double totalCurrentConsumption = getPluggedChargingPoints()
                 .stream()
                 .map(x -> x.isFastCharging()
                         ? Constants.FAST_CHARGING_CURRENT_AMP
                         : Constants.SLOW_CHARGING_CURRENT_AMP)
                 .collect(Collectors.summingDouble(Double::doubleValue));
 
-        if (currentConsumption >= Constants.FAST_CHARGING_CURRENT_AMP) {
-            cp.connect(clientId, connectedAt, true);
-            return;
+        if (totalCurrentConsumption > maxAvailableCurrentAmp){
+            throw new RuntimeException("Flaw in business logic"); // todo: special exception type
         }
 
-        // todo: TESTING - test for null exception
-        var fastChargingCPWithOldestConnection = pluggedCPs
-                .stream()
-                .filter(x -> x.EVPlugged() &&
-                             x.isFastCharging())
-                .sorted(Comparator.comparing(ChargingPoint::getPluggedAt)) // TODO: check order
-                .findFirst()
-                .get();
-
-        // Switching the earliest connected vehicle to a slow charging
-        fastChargingCPWithOldestConnection.switchToSlowCharging();
-        cp.connect(clientId, connectedAt, true);
+        return totalCurrentConsumption;
     }
 
+    private Connection connectToFastCharging(ChargingPoint cp, String clientId, LocalDateTime connectedAt) {
+        double currentAvailable = maxAvailableCurrentAmp - getTotalCurrentConsumption();
+
+        while (currentAvailable < Constants.FAST_CHARGING_CURRENT_AMP) {
+            var fastChargingCPWithOldestConnection = getPluggedChargingPoints()
+                    .stream()
+                    .filter(x -> x.isFastCharging())
+                    .sorted(Comparator.comparing(ChargingPoint::getPluggedAt))
+                    .findFirst()
+                    .get();
+
+            // Switching the earliest connected vehicle to a slow charging
+            fastChargingCPWithOldestConnection.switchToSlowCharging();
+            currentAvailable = maxAvailableCurrentAmp - getTotalCurrentConsumption();
+        }
+
+        return cp.connect(clientId, connectedAt, true);
+    }
+
+    private Connection connectToSlowCharging(ChargingPoint cp, String clientId, LocalDateTime connectedAt) {
+        double currentAvailable = maxAvailableCurrentAmp - getTotalCurrentConsumption();
+
+        // With given requirements (Number of CP = 10 and max current per park = 100) that won't run more than once
+        // but if we change the values of those variables the implementation won't break (or at least not here)
+        while (currentAvailable < Constants.SLOW_CHARGING_CURRENT_AMP) {
+            var fastChargingCPWithOldestConnection = getPluggedChargingPoints()
+                    .stream()
+                    .filter(x -> x.isFastCharging())
+                    .sorted(Comparator.comparing(ChargingPoint::getPluggedAt)) // TODO: check order
+                    .findFirst()
+                    .get();
+
+            fastChargingCPWithOldestConnection.switchToSlowCharging();
+            currentAvailable = maxAvailableCurrentAmp - getTotalCurrentConsumption();
+        }
+
+        return cp.connect(clientId, connectedAt, false);
+    }
+
+    // calculates how much of 'free' current there could be if each consumer switched to a slow charging
     private double calculateMaxPossibleCurrentAvailable() { // todo: a better naming
         var pluggedCPsCount = getPluggedChargingPoints().size();
         double currentAvailableToReserve = maxAvailableCurrentAmp - (pluggedCPsCount * Constants.SLOW_CHARGING_CURRENT_AMP);

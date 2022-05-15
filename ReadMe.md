@@ -2,7 +2,9 @@
 
 1. I am not 100% with the collections' types I used at each place.
 2. I assumed that method call chains like 
-   .stream().collect(...).stream().filter(...).collect(...) are not too bad perfomance wise.
+   .stream().collect(...).stream().filter(...).collect(...) are not too bad performance wise.
+3. I wrote tests as I would do it in C#. I don't know much about best practices of unit testing in Java and popular libraries. Hope tests are good enough.
+4. 
 
 ## Trade-offs
 
