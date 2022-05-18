@@ -1,23 +1,22 @@
-package com.example.ubitricitychallange.domain;
+package com.example.ubitricitychallange.model;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-// todo: rename to EV Connection?
-public class Connection {
-    public Connection(UUID id,
-                      String clientId,
-                      boolean isFastCharging,
-                      LocalDateTime connectedAt) {
+public class EVConnection {
+    public EVConnection(UUID id,
+                        String clientId,
+                        boolean isFastCharging,
+                        LocalDateTime connectedAt) {
         this.id = id;
         this.clientId = clientId;
         this.isFastCharging = isFastCharging;
         this.connectedAt = connectedAt;
     }
 
-    public static Connection create(String clientId, boolean isFastCharging, LocalDateTime connectedAt)
+    public static EVConnection create(String clientId, boolean isFastCharging, LocalDateTime connectedAt)
     {
-        return new Connection(UUID.randomUUID(), clientId, isFastCharging, connectedAt);
+        return new EVConnection(UUID.randomUUID(), clientId, isFastCharging, connectedAt);
     }
 
     private UUID id;

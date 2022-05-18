@@ -1,4 +1,4 @@
-package com.example.ubitricitychallange.domain;
+package com.example.ubitricitychallange.model;
 
 public class Constants {
     public static final double MAX_AVAILABLE_CURRENT_AMP_PER_CHARGING_PARK = 100;

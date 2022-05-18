@@ -1,5 +1,6 @@
-package com.example.ubitricitychallange.domain;
+package com.example.ubitricitychallange.model;
 
+import com.example.ubitricitychallange.exceptions.AlreadyPluggedException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -20,48 +21,48 @@ public class ChargingPointTests {
     }
 
     @Test
-    void connectToChargingPointAsFastChargingPropertiesShouldHaveExpectedValues(){
+    void plugToChargingPointAsFastChargingPropertiesShouldHaveExpectedValues(){
         // Arrange
         var cp = createCP();
         String clientId = "Client_1101";
 
         // Act
-        cp.connect(clientId, LocalDateTime.now(), true);
+        cp.plug(clientId, LocalDateTime.now(), true);
 
         // Assert
         var connection = cp.getConnections().iterator().next();
 
-        assertTrue(cp.EVPlugged());
+        assertTrue(cp.plugged());
         assertTrue(cp.isFastCharging());
         assertEquals(clientId, connection.getClientId());
         assertTrue(connection.isConnected());
     }
 
     @Test
-    void connectAndThenDisconnectShouldBeDisconnected(){
+    void plugAndThenDisconnectShouldBeDisconnected(){
         // Arrange
         var cp = createCP();
         String clientId = "Client_1102";
 
         // Act
-        cp.connect(clientId, LocalDateTime.now(), true);
-        cp.disconnect(LocalDateTime.now());
+        cp.plug(clientId, LocalDateTime.now(), true);
+        cp.unplug(LocalDateTime.now());
 
         // Assert
         var connections = cp.getConnections();
-        assertFalse(cp.EVPlugged());
+        assertFalse(cp.plugged());
         assertEquals(1, connections.size());
         assertTrue(connections.stream().allMatch(x -> x.getClientId() == clientId));
     }
 
     @Test
-    void connectAndThenSwitchToSlowChargingShouldHaveTwoConnections(){
+    void plugAndThenSwitchToSlowChargingShouldHaveTwoConnections(){
         // Arrange
         var cp = createCP();
         String clientId = "Client_1103";
 
         // Act
-        cp.connect(clientId, LocalDateTime.now(), true);
+        cp.plug(clientId, LocalDateTime.now(), true);
         cp.switchToSlowCharging();
 
         // Assert
@@ -69,7 +70,7 @@ public class ChargingPointTests {
         var slowConnection = connections.stream().filter(x -> !x.isFastCharging()).findFirst();
         var fastConnection = connections.stream().filter(x -> x.isFastCharging()).findFirst();
 
-        assertTrue(cp.EVPlugged());
+        assertTrue(cp.plugged());
         assertFalse(cp.isFastCharging());
         assertEquals(2, connections.size());
         assertTrue(connections.stream().allMatch(x -> x.getClientId() == clientId));
@@ -79,13 +80,13 @@ public class ChargingPointTests {
     }
 
     @Test
-    void connectAsFastChargingAndSwitchToFastChargingShouldThrowException(){
+    void plugAsFastChargingAndSwitchToFastChargingShouldThrowException(){
         // Arrange
         var cp = createCP();
         String clientId = "Client_1104";
 
         // Act
-        cp.connect(clientId, LocalDateTime.now(), true);
+        cp.plug(clientId, LocalDateTime.now(), true);
 
         // Assert
         Assertions.assertThrows(RuntimeException.class, () -> {
@@ -94,13 +95,13 @@ public class ChargingPointTests {
     }
 
     @Test
-    void connectAsSlowChargingAndSwitchToSlowChargingShouldThrowException(){
+    void plugAsSlowChargingAndSwitchToSlowChargingShouldThrowException(){
         // Arrange
         var cp = createCP();
         String clientId = "Client_1105";
 
         // Act
-        cp.connect(clientId, LocalDateTime.now(), false);
+        cp.plug(clientId, LocalDateTime.now(), false);
 
         // Assert
         Assertions.assertThrows(RuntimeException.class, () -> {
@@ -109,22 +110,35 @@ public class ChargingPointTests {
     }
 
     @Test
-    void connectAsFastChargingSwitchToSlowThenSwitchToFastShouldHaveThreeConnections(){
+    void plugAsFastChargingSwitchToSlowThenSwitchToFastShouldHaveThreeConnections() {
         // Arrange
         var cp = createCP();
         String clientId = "Client_1106";
 
         // Act
-        cp.connect(clientId, LocalDateTime.now(), true);
+        cp.plug(clientId, LocalDateTime.now(), true);
         cp.switchToSlowCharging();
         cp.switchToFastCharging();
 
         // Assert
         var connections = cp.getConnections();
-        assertTrue(cp.EVPlugged());
+        assertTrue(cp.plugged());
         assertEquals(3, connections.size());
         assertTrue(cp.isFastCharging());
         assertTrue(connections.stream().allMatch(x -> x.getClientId() == clientId));
+    }
+
+    @Test
+    void plugThenPlugAgainShouldThrowAlreadyPluggedException() {
+        // Arrange
+        var cp = createCP();
+
+        cp.plug("client1", LocalDateTime.now(), true);
+
+        // Act & Assert
+        Assertions.assertThrows(AlreadyPluggedException.class, () -> {
+            cp.plug("client2", LocalDateTime.now(), true);
+        });
     }
 
     private static ChargingPoint createCP(){

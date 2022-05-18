@@ -1,4 +1,6 @@
-package com.example.ubitricitychallange.domain;
+package com.example.ubitricitychallange.model;
+
+import com.example.ubitricitychallange.exceptions.AlreadyPluggedException;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -7,11 +9,11 @@ import java.util.Set;
 public class ChargingPoint {
     public ChargingPoint(int id) {
         this.id = id;
-        this.connections = new HashSet<Connection>();
+        this.connections = new HashSet<>();
     }
     private int id;
-    private Connection activeConnection;
-    private Set<Connection> connections;
+    private EVConnection activeConnection;
+    private Set<EVConnection> connections;
 
     public int getId() {
         return id;
@@ -21,23 +23,23 @@ public class ChargingPoint {
         return activeConnection.isFastCharging();
     }
 
-    public boolean EVPlugged() {
+    public boolean plugged() {
         return activeConnection != null;
     }
 
-    public Connection connect(String clientId, LocalDateTime connectedAt, boolean fastCharging) { // todo: connection request
-        if (EVPlugged()){
-            throw new RuntimeException("The CP is already plugged"); // TODO: type for an exception
+    public EVConnection plug(String clientId, LocalDateTime connectedAt, boolean fastCharging) {
+        if (plugged()){
+            throw new AlreadyPluggedException(getId());
         }
 
-        var connection= Connection.create(clientId, fastCharging, connectedAt); // todo: return connection object
+        var connection= EVConnection.create(clientId, fastCharging, connectedAt);
         connections.add(connection);
         activeConnection = connection;
 
         return connection;
     }
 
-    public void disconnect(LocalDateTime disconnectedAt) {
+    public void unplug(LocalDateTime disconnectedAt) {
         activeConnection.disconnect(disconnectedAt);
         activeConnection = null;
     }
@@ -50,8 +52,8 @@ public class ChargingPoint {
         var currentConnection = activeConnection;
         var now = LocalDateTime.now();
 
-        disconnect(now);
-        connect(currentConnection.getClientId(), now, false);
+        unplug(now);
+        plug(currentConnection.getClientId(), now, false);
     }
 
     public void switchToFastCharging(){
@@ -62,15 +64,15 @@ public class ChargingPoint {
         var currentConnection = activeConnection;
         var now = LocalDateTime.now();
 
-        disconnect(now);
-        connect(currentConnection.getClientId(), now, true);
+        unplug(now);
+        plug(currentConnection.getClientId(), now, true);
     }
 
     public LocalDateTime getPluggedAt() {
         return activeConnection.getConnectedAt();
     }
 
-    public Set<Connection> getConnections() {
+    public Set<EVConnection> getConnections() {
         return connections;
     }
 }

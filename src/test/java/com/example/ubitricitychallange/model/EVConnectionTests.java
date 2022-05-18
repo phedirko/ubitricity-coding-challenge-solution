@@ -1,4 +1,4 @@
-package com.example.ubitricitychallange.domain;
+package com.example.ubitricitychallange.model;
 
 import org.junit.jupiter.api.Test;
 
@@ -7,7 +7,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ConnectionTests {
+public class EVConnectionTests {
     @Test
     void createShouldHaveExpectedProperitiesValues(){
         // Arrange
@@ -15,7 +15,7 @@ public class ConnectionTests {
         boolean isFastCharging = true;
         var connectedAt = LocalDateTime.now();
 
-        var connection = Connection.create(clientId, isFastCharging, connectedAt);
+        var connection = EVConnection.create(clientId, isFastCharging, connectedAt);
 
         // Act & Assert
         assertNotNull(connection.getId());
@@ -28,7 +28,7 @@ public class ConnectionTests {
     @Test
     void createAndDisconnectIsConnectedShouldBeFalse(){
         // Arrange
-        var connection = Connection.create("Client_2", true, LocalDateTime.now());
+        var connection = EVConnection.create("Client_2", true, LocalDateTime.now());
 
         // Act
         connection.disconnect(LocalDateTime.now());

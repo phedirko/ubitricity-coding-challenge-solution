@@ -24,15 +24,22 @@
 2. **Thread-safety**: I tried to make the whole flow of plugging/unplugging as an atomic operation to provide some thread-safety avoid cases when two simultaneously connected vehicles leads to total consumption of >100 Amp. 
    1. It works (I hope so) in a solution like this, but I think this is not the case in real-world distributed systems where there could be more than 1 instance of the 'plugging/unplugging' service.
    2. The existing solution still could be improved in terms of performance. We could use 'synchronized' blocks for a smaller parts of code instead of whole *reservation flow*. This would lead to more complexity and should be tested properly, so I avoided it as a simplification.
+3. *API design*: As I implemented the solution in a way I would do the real one, I assumed, that several Charging Parks might use it.
+The endpoint looks like '/api/ChargingParks/1/Plug' instead of just '/api/Charge', so it is more 'RESTful'.
+It would also be possible to put all the request data into a body but this is debatable, REST is hard :).
 
 
 
 TODOS: 
-1. Exception filters
+1. Exception filters +
 2. Swagger
+   1. Response codes +
 3. Tests
+   1. repo
+   2. services
 4. Docker
-5. Exception types
-6. Report
-7. order methods/fields in classes
-8. Check for code conventions ('() {' or '(){', etc)
+   1. app
+   2. tests
+5. Exception types +
+6. Report + 
+7. Run tutorial
