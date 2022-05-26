@@ -1,6 +1,6 @@
 package com.example.ubitricitychallange.model;
 
-import com.example.ubitricitychallange.exceptions.AlreadyUnpluggedxception;
+import com.example.ubitricitychallange.exceptions.AlreadyUnpluggedException;
 import com.example.ubitricitychallange.exceptions.NotFoundException;
 import com.example.ubitricitychallange.exceptions.UnhandledBusinessLogicException;
 
@@ -61,7 +61,7 @@ public class ChargingPark {
                 .findFirst();
 
         if (targetCP.isEmpty()){
-            throw new AlreadyUnpluggedxception(chargingPointId);
+            throw new AlreadyUnpluggedException(chargingPointId);
         }
 
         targetCP.get().unplug(disconnectedAt);
