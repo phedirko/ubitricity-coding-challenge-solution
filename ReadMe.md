@@ -2,6 +2,8 @@
 
 ### How to run
 
+First of all - clone this repo
+
 You need to have openJDK and maven installed on you machine. Also, you need to set JAVA_HOME (https://confluence.atlassian.com/doc/setting-the-java_home-variable-in-windows-8895.html) 
 and MAVEN_HOME (https://phoenixnap.com/kb/install-maven-windows) variables.
 
