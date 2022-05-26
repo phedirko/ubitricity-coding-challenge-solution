@@ -1,5 +1,7 @@
 package com.example.ubitricitychallange.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,10 +21,14 @@ public class EVConnection {
         return new EVConnection(UUID.randomUUID(), clientId, isFastCharging, connectedAt);
     }
 
-    private UUID id;
-    private String clientId; // Could be any string
-    private boolean isFastCharging;
-    private LocalDateTime connectedAt;
+    @Schema(description = "Generated connection id")
+    private final UUID id;
+    @Schema(description = "Id of client")
+    private final String clientId; // Could be any string
+    @Schema(description = "true if fast charging")
+    private final boolean isFastCharging;
+    @Schema(description = "start of charging")
+    private final LocalDateTime connectedAt;
     private LocalDateTime disconnectedAt;
 
     public UUID getId() {

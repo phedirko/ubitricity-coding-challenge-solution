@@ -11,11 +11,11 @@ public class DisconnectEVRequest {
         this.disconnectedAt = disconnectedAt;
     }
 
-    @Schema(description = "id of charging point (1-10)")
-    private int chargingPointId;
+    @Schema(description = "id of charging point (1-10)", required = true)
+    private final int chargingPointId;
 
-    @Schema(description = "Date and time when EV was disconnected. Should be sent by client.")
-    private LocalDateTime disconnectedAt;
+    @Schema(description = "UTC DateTime when EV was disconnected. Should be sent by client.", required = true)
+    private final LocalDateTime disconnectedAt;
     public int getChargingPointId() {
         return chargingPointId;
     }
